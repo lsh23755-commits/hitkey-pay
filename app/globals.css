@@ -1,0 +1,30 @@
+:root {
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --text: #191f28;
+  --sub: #6b7684;
+  --line: #e5e8eb;
+  --accent: #3182f6;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Malgun Gothic", "Noto Sans KR", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
