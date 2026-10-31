@@ -8,7 +8,11 @@ import styles from "./page.module.css";
 const CATEGORIES = ["식비", "카페", "교통", "쇼핑", "구독", "기타"];
 const EMOJI = { 식비: "🍙", 카페: "☕", 교통: "🚌", 쇼핑: "🛍️", 구독: "💌", 기타: "✨" };
 
-const won =(n) => `${n.toLocaleString("ko-KR")}원`;
+const BUDGET_KEY = "monthly_budget";
+
+const won = (n) => `${n.toLocaleString("ko-KR")}원`;
+
+const monthLabel = (m) => `${m.slice(0, 4)}년 ${Number(m.slice(5))}월`;
 
 function todayString() {
   const d = new Date();
@@ -43,14 +47,28 @@ export default function Home() {
   const [place, setPlace] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [date, setDate] = useState("");
-  const [thisMonth, setThisMonth] = useState("");
+  const [todayMonth, setTodayMonth] = useState("");
+  const [viewMonth, setViewMonth] = useState("");
   const [memo, setMemo] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [budget, setBudget] = useState(null);
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [budgetInput, setBudgetInput] = useState("");
 
   // 현재 날짜는 프리렌더 시점이 아닌 브라우저에서 읽는다
   useEffect(() => {
     const today = todayString();
     setDate(today);
-    setThisMonth(today.slice(0, 7));
+    setTodayMonth(today.slice(0, 7));
+    setViewMonth(today.slice(0, 7));
+    supabase
+      .from("settings")
+      .select("value")
+      .eq("key", BUDGET_KEY)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setBudget(data.value);
+      });
     supabase
       .from("expenses")
       .select("id, amount, place, category, date, memo")
@@ -61,12 +79,24 @@ export default function Home() {
       });
   }, []);
 
-  const monthTotal = expenses
-    .filter((e) => thisMonth && e.date.startsWith(thisMonth))
-    .reduce((sum, e) => sum + e.amount, 0);
+  const monthExpenses = expenses.filter(
+    (e) => viewMonth && e.date.startsWith(viewMonth)
+  );
+  const monthTotal = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const categoryStats = CATEGORIES.map((c) => ({
+    category: c,
+    sum: monthExpenses
+      .filter((e) => e.category === c)
+      .reduce((s, e) => s + e.amount, 0),
+  }))
+    .filter((s) => s.sum > 0)
+    .sort((a, b) => b.sum - a.sum);
+
+  const budgetRatio = budget ? monthTotal / budget : 0;
 
   const groups = Object.entries(
-    expenses.reduce((acc, e) => {
+    monthExpenses.reduce((acc, e) => {
       (acc[e.date] ||= []).push(e);
       return acc;
     }, {})
@@ -109,19 +139,62 @@ export default function Home() {
     }
   }
 
+  function shiftMonth(delta) {
+    const [y, m] = viewMonth.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    setViewMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  async function handleBudgetSave(ev) {
+    ev.preventDefault();
+    const value = Number(budgetInput);
+    if (!Number.isInteger(value) || value < 0) return;
+    const { error } = await supabase
+      .from("settings")
+      .upsert({ key: BUDGET_KEY, value });
+    if (error) {
+      setError("예산을 저장하지 못했어요");
+      return;
+    }
+    setError("");
+    setBudget(value);
+    setBudgetOpen(false);
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setAmount("");
+    setPlace("");
+    setMemo("");
+    setDate(todayString());
+  }
+
+  function startEdit(e) {
+    setEditingId(e.id);
+    setAmount(String(e.amount));
+    setPlace(e.place);
+    setCategory(e.category);
+    setDate(e.date);
+    setMemo(e.memo);
+    setNotice("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function handleSubmit(ev) {
     ev.preventDefault();
     const value = Number(amount);
     if (!value || value <= 0 || !place.trim() || !date) return;
-    const { data, error } = await supabase
-      .from("expenses")
-      .insert({
-        amount: value,
-        place: place.trim(),
-        category,
-        date,
-        memo: memo.trim(),
-      })
+    const fields = {
+      amount: value,
+      place: place.trim(),
+      category,
+      date,
+      memo: memo.trim(),
+    };
+    const query = editingId
+      ? supabase.from("expenses").update(fields).eq("id", editingId)
+      : supabase.from("expenses").insert(fields);
+    const { data, error } = await query
       .select("id, amount, place, category, date, memo")
       .single();
     if (error) {
@@ -129,10 +202,13 @@ export default function Home() {
       return;
     }
     setError("");
-    setExpenses((prev) => [...prev, data]);
-    setAmount("");
-    setPlace("");
-    setMemo("");
+    setExpenses((prev) =>
+      editingId
+        ? prev.map((e) => (e.id === editingId ? data : e))
+        : [...prev, data]
+    );
+    setViewMonth(date.slice(0, 7));
+    resetForm();
   }
 
   async function handleDelete(id) {
@@ -143,6 +219,7 @@ export default function Home() {
     }
     setError("");
     setExpenses((prev) => prev.filter((e) => e.id !== id));
+    if (id === editingId) resetForm();
   }
 
   return (
@@ -155,11 +232,105 @@ export default function Home() {
       </div>
 
       <section className={styles.summary}>
-        <div className={styles.summaryLabel}>이번 달 지출</div>
+        <div className={styles.monthNav}>
+          <button
+            type="button"
+            className={styles.navBtn}
+            aria-label="이전 달"
+            onClick={() => shiftMonth(-1)}
+            disabled={!viewMonth}
+          >
+            ‹
+          </button>
+          <span className={styles.summaryLabel}>
+            {viewMonth && monthLabel(viewMonth)}
+            {viewMonth === todayMonth ? " (이번 달)" : ""} 지출
+          </span>
+          <button
+            type="button"
+            className={styles.navBtn}
+            aria-label="다음 달"
+            onClick={() => shiftMonth(1)}
+            disabled={!viewMonth}
+          >
+            ›
+          </button>
+        </div>
         <div className={styles.total}>{won(monthTotal)}</div>
+
+        <div className={styles.budget}>
+          {budgetOpen ? (
+            <form className={styles.budgetForm} onSubmit={handleBudgetSave}>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                placeholder="월 예산(원)"
+                value={budgetInput}
+                onChange={(e) => setBudgetInput(e.target.value)}
+                autoFocus
+              />
+              <button type="submit">저장</button>
+              <button type="button" onClick={() => setBudgetOpen(false)}>
+                취소
+              </button>
+            </form>
+          ) : (
+            <>
+              {budget ? (
+                <>
+                  <div className={styles.bar}>
+                    <div
+                      className={`${styles.barFill} ${
+                        budgetRatio > 1 ? styles.over : ""
+                      }`}
+                      style={{ width: `${Math.min(budgetRatio, 1) * 100}%` }}
+                    />
+                  </div>
+                  <div className={styles.budgetText}>
+                    {budgetRatio > 1
+                      ? `예산 ${won(monthTotal - budget)} 초과 😱`
+                      : `예산 ${won(budget)} 중 ${won(budget - monthTotal)} 남음`}
+                    {` (${Math.round(budgetRatio * 100)}%)`}
+                  </div>
+                </>
+              ) : null}
+              <button
+                type="button"
+                className={styles.budgetBtn}
+                onClick={() => {
+                  setBudgetInput(budget ? String(budget) : "");
+                  setBudgetOpen(true);
+                }}
+              >
+                {budget ? "예산 수정" : "+ 월 예산 설정"}
+              </button>
+            </>
+          )}
+        </div>
       </section>
 
       {error && <p className={styles.error}>{error}</p>}
+
+      {categoryStats.length > 0 && (
+        <section className={styles.stats}>
+          <h2 className={styles.statsTitle}>카테고리별 지출</h2>
+          {categoryStats.map((s) => (
+            <div key={s.category} className={styles.statRow}>
+              <span className={styles.statName}>
+                {EMOJI[s.category]} {s.category}
+              </span>
+              <div className={styles.statBar}>
+                <div
+                  className={styles.statFill}
+                  style={{ width: `${(s.sum / monthTotal) * 100}%` }}
+                />
+              </div>
+              <span className={styles.statSum}>{won(s.sum)}</span>
+            </div>
+          ))}
+        </section>
+      )}
 
       <form className={styles.form} onSubmit={handleSubmit}>
         <label className={styles.scan}>
@@ -236,12 +407,17 @@ export default function Home() {
           />
         </div>
         <button type="submit" className={styles.submit}>
-          추가하기
+          {editingId ? "수정 완료" : "추가하기"}
         </button>
+        {editingId && (
+          <button type="button" className={styles.cancel} onClick={resetForm}>
+            수정 취소
+          </button>
+        )}
       </form>
 
       {groups.length === 0 ? (
-        <p className={styles.empty}>아직 입력한 지출이 없어요</p>
+        <p className={styles.empty}>이 달에 입력한 지출이 없어요</p>
       ) : (
         groups.map(([d, items]) => (
           <section key={d} className={styles.group}>
@@ -261,6 +437,14 @@ export default function Home() {
                   </div>
                   <div className={styles.right}>
                     <span className={styles.amount}>{won(e.amount)}</span>
+                    <button
+                      type="button"
+                      className={styles.del}
+                      aria-label="수정"
+                      onClick={() => startEdit(e)}
+                    >
+                      ✎
+                    </button>
                     <button
                       type="button"
                       className={styles.del}

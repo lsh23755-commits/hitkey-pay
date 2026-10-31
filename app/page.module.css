@@ -245,3 +245,141 @@
   text-decoration: underline wavy var(--accent);
   text-underline-offset: 4px;
 }
+
+.monthNav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navBtn {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.navBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+.budget {
+  margin-top: 14px;
+}
+
+.bar {
+  height: 18px;
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: var(--mint);
+  border-right: 3px solid var(--ink);
+}
+
+.barFill.over {
+  background: var(--sun);
+}
+
+.budgetText {
+  margin-top: 6px;
+  font-size: 14px;
+  color: #fff;
+  text-shadow: 1px 1px 0 var(--ink);
+}
+
+.budgetBtn {
+  margin-top: 8px;
+  padding: 4px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.budgetForm {
+  display: flex;
+  gap: 6px;
+}
+
+.budgetForm input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+.budgetForm button {
+  padding: 0 12px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.stats {
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  box-shadow: 5px 5px 0 var(--ink);
+  padding: 16px;
+  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.statsTitle {
+  font-size: 17px;
+  font-weight: 400;
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: 76px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.statBar {
+  height: 14px;
+  background: #fffaf0;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.statFill {
+  height: 100%;
+  background: var(--lilac);
+  border-right: 2px solid var(--ink);
+}
+
+.statSum {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.cancel {
+  height: 42px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
