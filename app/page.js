@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import styles from "./page.module.css";
@@ -145,7 +146,12 @@ export default function Home() {
 
   return (
     <main className={styles.app}>
-      <div className={styles.brand}>히트키</div>
+      <div className={styles.topbar}>
+        <div className={styles.brand}>히트키</div>
+        <Link href="/mcp" className={styles.mcpLink}>
+          MCP 연동
+        </Link>
+      </div>
 
       <section className={styles.summary}>
         <div className={styles.summaryLabel}>이번 달 지출</div>

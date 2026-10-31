@@ -197,3 +197,15 @@
   font-size: 13px;
   color: var(--sub);
 }
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mcpLink {
+  font-size: 13px;
+  color: var(--sub);
+  text-decoration: none;
+}
