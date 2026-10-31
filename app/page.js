@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import styles from "./page.module.css";
 
 const CATEGORIES = ["식비", "카페", "교통", "쇼핑", "구독", "기타"];
+const EMOJI = { 식비: "🍙", 카페: "☕", 교통: "🚌", 쇼핑: "🛍️", 구독: "💌", 기타: "✨" };
 
 const won =(n) => `${n.toLocaleString("ko-KR")}원`;
 
@@ -209,7 +210,7 @@ export default function Home() {
                 }`}
                 onClick={() => setCategory(c)}
               >
-                {c}
+                {EMOJI[c]} {c}
               </button>
             ))}
           </div>
@@ -254,7 +255,7 @@ export default function Home() {
                   <div className={styles.itemMain}>
                     <div className={styles.place}>{e.place}</div>
                     <div className={styles.meta}>
-                      {e.category}
+                      {EMOJI[e.category]} {e.category}
                       {e.memo ? ` · ${e.memo}` : ""}
                     </div>
                   </div>
