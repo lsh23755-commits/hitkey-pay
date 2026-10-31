@@ -21,9 +21,22 @@ function formatDate(dateStr) {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 (${week})`;
 }
 
+// 업로드 용량을 줄이기 위해 긴 변 1600px 이하 JPEG로 줄인다
+async function toJpegBase64(file) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+}
+
 export default function Home() {
   const [expenses, setExpenses] = useState([]);
   const [error, setError] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [notice, setNotice] = useState("");
   const [amount, setAmount] = useState("");
   const [place, setPlace] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -56,6 +69,43 @@ export default function Home() {
       return acc;
     }, {})
   ).sort(([a], [b]) => (a < b ? 1 : -1));
+
+  async function handleReceipt(ev) {
+    const file = ev.target.files[0];
+    ev.target.value = "";
+    if (!file) return;
+    setScanning(true);
+    setNotice("");
+    try {
+      const image = await toJpegBase64(file);
+      const res = await fetch("/api/receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image, mimeType: "image/jpeg" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      // 읽은 값은 저장하지 않고 입력 칸만 채운다. 못 읽은 칸은 비워 둔다.
+      setAmount(data.amount ? String(data.amount) : "");
+      setPlace(data.place ?? "");
+      if (data.date) setDate(data.date);
+      const missing = [
+        !data.amount && "금액",
+        !data.place && "사용처",
+        !data.date && "날짜",
+      ].filter(Boolean);
+      setNotice(
+        missing.length
+          ? `${missing.join(", ")}은(는) 읽지 못했어요. 직접 입력해 주세요.`
+          : "영수증을 읽었어요. 내용을 확인하고 추가해 주세요."
+      );
+    } catch (e) {
+      setNotice(e.message || "영수증을 읽지 못했어요. 직접 입력해 주세요.");
+    } finally {
+      setScanning(false);
+    }
+  }
 
   async function handleSubmit(ev) {
     ev.preventDefault();
@@ -105,6 +155,18 @@ export default function Home() {
       {error && <p className={styles.error}>{error}</p>}
 
       <form className={styles.form} onSubmit={handleSubmit}>
+        <label className={styles.scan}>
+          {scanning ? "영수증 읽는 중..." : "📷 영수증으로 채우기"}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleReceipt}
+            disabled={scanning}
+            hidden
+          />
+        </label>
+        {notice && <p className={styles.notice}>{notice}</p>}
         <div className={styles.field}>
           <label htmlFor="amount">금액</label>
           <input

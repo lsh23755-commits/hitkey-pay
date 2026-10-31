@@ -179,3 +179,21 @@
   font-size: 14px;
   color: #e5484d;
 }
+
+.scan {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notice {
+  font-size: 13px;
+  color: var(--sub);
+}
